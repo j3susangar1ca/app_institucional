@@ -1,23 +1,31 @@
 import flet as ft
+import logging
+from typing import Optional
 from core.procesador_pdf import ProcesadorPDF
 from core.ia_cliente import IACliente
 from database.db_manager import save_document
 
+logger = logging.getLogger(__name__)
+
+
 class VistaCorrespondencia(ft.Column):
+    """Vista principal para gestión de correspondencia con IA."""
+    
     def __init__(self, page: ft.Page):
         super().__init__()
         self._page = page
         
         # Inicialización de módulos core
         self.procesador = ProcesadorPDF()
-        self.ia = IACliente()  # Instanciamos la conexión real a LM Studio
-        self.ruta_pdf_actual = "" # Variable para recordar qué PDF se subió
+        self.ia = IACliente()
+        self.ruta_pdf_actual: str = ""
         
+        # Configurar FilePicker
         self.file_picker = ft.FilePicker()
-        self.file_picker.on_result = self.on_file_result
+        self.file_picker.on_result = self._on_file_result
         self._page.overlay.append(self.file_picker)
 
-        # --- NUEVOS CAMPOS ADMINISTRATIVOS ---
+        # --- CAMPOS ADMINISTRATIVOS ---
         self.txt_folio = ft.TextField(
             label="Folio del Documento", 
             hint_text="Ej. OF-2024-001",
@@ -72,22 +80,21 @@ class VistaCorrespondencia(ft.Column):
                 ft.ElevatedButton(
                     "Cargar Oficio PDF",
                     icon=ft.Icons.UPLOAD_FILE,
-                    on_click=self.pick_files_click,
+                    on_click=self._pick_files_click,
                     style=ft.ButtonStyle(color=ft.Colors.WHITE, bgcolor=ft.Colors.BLUE_900)
                 ),
                 ft.VerticalDivider(width=10),
                 ft.FilledButton(
                     "Generar Respuesta con IA",
                     icon=ft.Icons.AUTO_AWESOME,
-                    on_click=self.procesar_con_ia,
+                    on_click=self._procesar_con_ia,
                     style=ft.ButtonStyle(bgcolor=ft.Colors.AMBER_800)
                 ),
                 ft.VerticalDivider(width=10),
-                # NUEVO BOTÓN PARA GUARDAR EN BASE DE DATOS
                 ft.ElevatedButton(
                     "Guardar en Archivo",
                     icon=ft.Icons.SAVE,
-                    on_click=self.guardar_en_bd,
+                    on_click=self._guardar_en_bd,
                     style=ft.ButtonStyle(color=ft.Colors.WHITE, bgcolor=ft.Colors.GREEN_700)
                 ),
             ]),
@@ -95,73 +102,101 @@ class VistaCorrespondencia(ft.Column):
             
             # Área de Trabajo Principal (Textos)
             ft.Row([
-                ft.Container(content=self.txt_oficio, expand=1, padding=10, border=ft.border.all(1, ft.Colors.GREY_300), border_radius=10),
-                ft.Container(content=self.txt_respuesta, expand=1, padding=10, border=ft.border.all(1, ft.Colors.BLUE_100), border_radius=10, bgcolor=ft.Colors.BLUE_50),
+                ft.Container(
+                    content=self.txt_oficio, 
+                    expand=1, 
+                    padding=10, 
+                    border=ft.border.all(1, ft.Colors.GREY_300), 
+                    border_radius=10
+                ),
+                ft.Container(
+                    content=self.txt_respuesta, 
+                    expand=1, 
+                    padding=10, 
+                    border=ft.border.all(1, ft.Colors.BLUE_100), 
+                    border_radius=10, 
+                    bgcolor=ft.Colors.BLUE_50
+                ),
             ], expand=True),
         ]
 
-    # --- LÓGICA DE EVENTOS ---
+    # --- MÉTODOS DE EVENTOS ---
 
-    async def pick_files_click(self, e):
+    async def _pick_files_click(self, e):
         await self.file_picker.pick_files(allow_multiple=False, allowed_extensions=["pdf"])
 
-    def on_file_result(self, e: ft.FilePickerResultEvent):
+    def _on_file_result(self, e: ft.FilePickerResultEvent):
         if e.files:
             self.ruta_pdf_actual = e.files[0].path
             self.pr.visible = True
             self._page.update()
             
-            texto = self.procesador.extraer_texto(self.ruta_pdf_actual)
-            self.txt_oficio.value = texto
-            
-            self.pr.visible = False
-            self.mostrar_notificacion(f"Archivo cargado: {e.files[0].name}", ft.Colors.GREEN)
+            try:
+                texto = self.procesador.extraer_texto(self.ruta_pdf_actual)
+                self.txt_oficio.value = texto
+                self._mostrar_notificacion(f"Archivo cargado: {e.files[0].name}", ft.Colors.GREEN)
+            except Exception as ex:
+                logger.error(f"Error al procesar PDF: {str(ex)}", exc_info=True)
+                self._mostrar_notificacion(f"Error al procesar PDF: {str(ex)}", ft.Colors.RED)
+            finally:
+                self.pr.visible = False
+                self._page.update()
 
-    def procesar_con_ia(self, e):
-        if not self.txt_oficio.value:
-            self.mostrar_notificacion("Por favor, carga un oficio o escribe el texto primero.", ft.Colors.RED_400)
+    def _procesar_con_ia(self, e):
+        if not self.txt_oficio.value or not self.txt_oficio.value.strip():
+            self._mostrar_notificacion("Por favor, carga un oficio o escribe el texto primero.", ft.Colors.RED_400)
             return
             
         self.pr.visible = True
-        self.txt_respuesta.value = "Conectando con LM Studio... Analizando documento..."
+        self.txt_respuesta.value = "Conectando con IA... Analizando documento..."
         self._page.update()
         
-        # LLAMADA REAL A LA INTELIGENCIA ARTIFICIAL
-        respuesta_generada = self.ia.generar_respuesta(self.txt_oficio.value)
-        self.txt_respuesta.value = respuesta_generada
-        
-        self.pr.visible = False
-        self.mostrar_notificacion("Borrador generado exitosamente.", ft.Colors.GREEN)
+        try:
+            # LLAMADA A LA INTELIGENCIA ARTIFICIAL
+            respuesta_generada = self.ia.generar_respuesta(self.txt_oficio.value)
+            self.txt_respuesta.value = respuesta_generada
+            self._mostrar_notificacion("Borrador generado exitosamente.", ft.Colors.GREEN)
+        except Exception as ex:
+            logger.error(f"Error al generar respuesta con IA: {str(ex)}", exc_info=True)
+            self._mostrar_notificacion(f"Error al generar respuesta: {str(ex)}", ft.Colors.RED)
+        finally:
+            self.pr.visible = False
+            self._page.update()
 
-    def guardar_en_bd(self, e):
+    def _guardar_en_bd(self, e):
         """Guarda el documento y su respuesta en la base de datos SQLite"""
-        if not self.txt_folio.value or not self.txt_asunto.value:
-            self.mostrar_notificacion("Debes ingresar el Folio y el Asunto para poder guardar.", ft.Colors.RED_400)
+        if not self.txt_folio.value or not self.txt_folio.value.strip():
+            self._mostrar_notificacion("Debes ingresar el Folio para poder guardar.", ft.Colors.RED_400)
+            return
+        
+        if not self.txt_asunto.value or not self.txt_asunto.value.strip():
+            self._mostrar_notificacion("Debes ingresar el Asunto para poder guardar.", ft.Colors.RED_400)
             return
             
-        if not self.txt_oficio.value:
-            self.mostrar_notificacion("No hay contenido de documento para guardar.", ft.Colors.RED_400)
+        if not self.txt_oficio.value or not self.txt_oficio.value.strip():
+            self._mostrar_notificacion("No hay contenido de documento para guardar.", ft.Colors.RED_400)
             return
 
         try:
-            # Aquí llamamos a la función de database/db_manager.py
-            # Asumimos que "remitente" se extraerá del texto o se puede agregar otro campo después
             save_document(
-                folio=self.txt_folio.value,
-                asunto=self.txt_asunto.value,
+                folio=self.txt_folio.value.strip(),
+                asunto=self.txt_asunto.value.strip(),
                 contenido=self.txt_oficio.value, 
-                remitente="Pendiente / Extraído", # Se puede crear un campo de texto para esto
+                remitente="Pendiente / Extraído",
                 ruta=self.ruta_pdf_actual
             )
-            self.mostrar_notificacion(f"Documento {self.txt_folio.value} guardado en el archivo histórico.", ft.Colors.GREEN_700)
-            
-            # Opcional: Limpiar la interfaz después de guardar
-            # self.limpiar_interfaz()
-            
+            self._mostrar_notificacion(
+                f"Documento {self.txt_folio.value} guardado en el archivo histórico.", 
+                ft.Colors.GREEN_700
+            )
+        except ValueError as ve:
+            logger.warning(f"Error de validación al guardar: {str(ve)}")
+            self._mostrar_notificacion(str(ve), ft.Colors.RED_400)
         except Exception as ex:
-            self.mostrar_notificacion(f"Error al guardar en base de datos: {str(ex)}", ft.Colors.RED_400)
+            logger.error(f"Error al guardar en base de datos: {str(ex)}", exc_info=True)
+            self._mostrar_notificacion(f"Error al guardar en base de datos: {str(ex)}", ft.Colors.RED_400)
 
-    def mostrar_notificacion(self, mensaje: str, color: str):
+    def _mostrar_notificacion(self, mensaje: str, color: str):
         """Función auxiliar para mostrar mensajes al usuario de forma limpia"""
         self._page.snack_bar = ft.SnackBar(
             content=ft.Text(mensaje, color=ft.Colors.WHITE),
