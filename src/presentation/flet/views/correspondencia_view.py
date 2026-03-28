@@ -4,7 +4,7 @@ Implementa la UI siguiendo el patrón MVVM.
 """
 import flet as ft
 import logging
-from .correspondencia_vm import (
+from src.presentation.flet.viewmodels.correspondencia_vm import (
     CorrespondenciaViewModel,
     CorrespondenciaState,
     EstadoVista,
