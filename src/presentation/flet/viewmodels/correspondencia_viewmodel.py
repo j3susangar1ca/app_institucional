@@ -1,8 +1,9 @@
 import logging
 from typing import Optional, Callable
-from src.application.use_cases.procesar_documento import ProcesarDocumentoUseCase
-from src.application.use_cases.guardar_documento import GuardarDocumentoUseCase
-from src.application.dto.documento_dto import DocumentoDTO
+from src.application.use_cases import (
+    CargarDocumentoUseCase, GenerarRespuestaUseCase, GuardarDocumentoUseCase,
+    ProcesarPDFRequest, GenerarRespuestaRequest, CrearDocumentoRequest
+)
 
 logger = logging.getLogger(__name__)
 
@@ -11,13 +12,15 @@ class CorrespondenciaViewModel:
     
     def __init__(
         self, 
-        procesar_use_case: ProcesarDocumentoUseCase,
-        guardar_use_case: GuardarDocumentoUseCase
+        cargar_uc: CargarDocumentoUseCase,
+        generar_uc: GenerarRespuestaUseCase,
+        guardar_uc: GuardarDocumentoUseCase
     ):
-        self.procesar_use_case = procesar_use_case
-        self.guardar_use_case = guardar_use_case
+        self.cargar_uc = cargar_uc
+        self.generar_uc = generar_uc
+        self.guardar_uc = guardar_uc
         
-        # Estado de la vista
+        # Estado
         self.folio = ""
         self.asunto = ""
         self.contenido = ""
@@ -25,29 +28,19 @@ class CorrespondenciaViewModel:
         self.ruta_pdf = ""
         self.is_loading = False
         
-        # Callbacks para notificar a la vista
         self.on_state_changed: Optional[Callable] = None
         self.on_notification: Optional[Callable] = None
 
-    def set_folio(self, value: str):
-        self.folio = value
-
-    def set_asunto(self, value: str):
-        self.asunto = value
-
-    def set_contenido(self, value: str):
-        self.contenido = value
-
-    def set_respuesta(self, value: str):
-        self.respuesta = value
+    def set_folio(self, v: str): self.folio = v
+    def set_asunto(self, v: str): self.asunto = v
+    def set_contenido(self, v: str): self.contenido = v
+    def set_respuesta(self, v: str): self.respuesta = v
 
     def update_state(self):
-        if self.on_state_changed:
-            self.on_state_changed()
+        if self.on_state_changed: self.on_state_changed()
 
-    def notify(self, message: str, color: str):
-        if self.on_notification:
-            self.on_notification(message, color)
+    def notify(self, msg: str, color: str):
+        if self.on_notification: self.on_notification(msg, color)
 
     def select_file(self, path: str):
         self.ruta_pdf = path
@@ -55,50 +48,56 @@ class CorrespondenciaViewModel:
         self.update_state()
         
         try:
-            texto = self.procesar_use_case.extraer_texto(path)
-            self.contenido = texto
-            self.notify(f"Archivo cargado: {path.split('/')[-1]}", "green")
+            req = ProcesarPDFRequest(ruta_archivo=path)
+            res = self.cargar_uc.ejecutar(req)
+            
+            if res.exitoso:
+                self.contenido = res.datos['contenido']
+                self.notify(f"Archivo cargado ({res.datos['numero_paginas']} págs)", "green")
+            else:
+                self.notify(f"Error: {res.error}", "red")
         except Exception as e:
-            logger.error(f"Error cargando PDF: {str(e)}")
-            self.notify(f"Error: {str(e)}", "red")
+            self.notify(f"Error crítico: {str(e)}", "red")
         finally:
             self.is_loading = False
             self.update_state()
 
     def generar_respuesta(self):
         if not self.contenido.strip():
-            self.notify("Cargue un documento primero", "orange")
-            return
+            return self.notify("Cargue documento primero", "orange")
             
         self.is_loading = True
-        self.respuesta = "Generando respuesta con IA..."
         self.update_state()
         
         try:
-            self.respuesta = self.procesar_use_case.generar_respuesta(self.contenido)
-            self.notify("Respuesta generada", "green")
+            req = GenerarRespuestaRequest(texto_oficio=self.contenido)
+            res = self.generar_uc.ejecutar(req)
+            
+            if res.exitoso:
+                self.respuesta = res.datos['contenido']
+                self.notify("Respuesta generada", "green")
+            else:
+                self.notify(f"Error IA: {res.error}", "red")
         except Exception as e:
-            logger.error(f"Error IA: {str(e)}")
             self.notify(f"Error IA: {str(e)}", "red")
         finally:
             self.is_loading = False
             self.update_state()
 
     def guardar(self):
-        if not self.folio or not self.asunto or not self.contenido:
-            self.notify("Folio, Asunto y Contenido son requeridos", "orange")
-            return
+        if not self.folio or not self.asunto:
+            return self.notify("Folio y Asunto requeridos", "orange")
             
         try:
-            dto = DocumentoDTO(
-                folio=self.folio,
-                asunto=self.asunto,
-                contenido=self.contenido,
-                remitente="Pendiente",
-                ruta_archivo=self.ruta_pdf
+            req = CrearDocumentoRequest(
+                folio=self.folio, asunto=self.asunto, contenido=self.contenido,
+                remitente="Enviado por IA", ruta_archivo=self.ruta_pdf
             )
-            self.guardar_use_case.execute(dto)
-            self.notify(f"Documento {self.folio} guardado", "green")
+            res = self.guardar_uc.ejecutar(req)
+            
+            if res.exitoso:
+                self.notify(f"Guardado como {res.datos['id']}", "green")
+            else:
+                self.notify(f"Error: {res.error}", "red")
         except Exception as e:
-            logger.error(f"Error guardando: {str(e)}")
             self.notify(f"Error al guardar: {str(e)}", "red")

@@ -1,47 +1,55 @@
 import os
 import logging
+import time
 from typing import Optional
 from openai import OpenAI
-from dotenv import load_dotenv
-
 from src.infrastructure.config import get_settings
+from src.domain.entities import ResultadoOperacion, RespuestaIA
 
 logger = logging.getLogger(__name__)
 
 class IACliente:
-    """Implementación del cliente de IA usando OpenAI (LM Studio)."""
+    """Implementación del cliente de IA cumpliendo IServicioIA."""
     
     def __init__(self, settings=None):
         self.settings = settings or get_settings().ai
-        self.client = OpenAI(
-            base_url=self.settings.base_url, 
-            api_key=self.settings.api_key
-        )
+        self.client = OpenAI(base_url=self.settings.base_url, api_key=self.settings.api_key)
 
-    def generar_respuesta(self, texto_oficio: str, contexto: Optional[str] = None) -> str:
+    def generar_respuesta(self, texto_oficio: str, contexto: Optional[str] = None) -> ResultadoOperacion[RespuestaIA]:
         if not texto_oficio or not texto_oficio.strip():
-            return "Error: El texto del oficio está vacío"
+            return ResultadoOperacion(exitoso=False, error="Texto vacío")
         
+        start_time = time.time()
         try:
-            system_message = "Eres un asistente experto en correspondencia institucional. Redacta respuestas formales, claras y profesionales."
-            user_content = f"Redacta una respuesta formal para el siguiente oficio:\n\n{texto_oficio}"
+            system_message = "Eres un asistente experto en correspondencia institucional."
+            user_content = f"Redacta respuesta para:\n\n{texto_oficio}"
             if contexto:
-                user_content += f"\n\nContexto adicional: {contexto}"
+                user_content += f"\n\nContexto: {contexto}"
             
             response = self.client.chat.completions.create(
-                model=self.model,
+                model=self.settings.model,
                 messages=[
                     {"role": "system", "content": system_message},
                     {"role": "user", "content": user_content}
                 ],
-                temperature=self.temperature,
-                max_tokens=2000
+                temperature=self.settings.temperature,
+                max_tokens=self.settings.max_tokens
             )
             
+            duration_ms = int((time.time() - start_time) * 1000)
+            
             if response.choices:
-                return response.choices[0].message.content or "No se pudo generar contenido"
-            return "Error: La IA no generó una respuesta válida"
+                contenido = response.choices[0].message.content or ""
+                datos = RespuestaIA(
+                    contenido=contenido,
+                    modelo=self.settings.model,
+                    tokens_utilizados=response.usage.total_tokens if response.usage else 0,
+                    tiempo_respuesta_ms=duration_ms
+                )
+                return ResultadoOperacion(exitoso=True, datos=datos)
+                
+            return ResultadoOperacion(exitoso=False, error="Sin respuesta de IA")
                 
         except Exception as e:
-            logger.error(f"Error al conectar con IA: {str(e)}", exc_info=True)
-            return f"Error al conectar con el servicio de IA: {str(e)}"
+            logger.error(f"Error IA: {str(e)}", exc_info=True)
+            return ResultadoOperacion(exitoso=False, error=str(e))
