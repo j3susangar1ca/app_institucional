@@ -1,0 +1,7 @@
+flet>=0.21.2
+openai>=1.14.2
+PyMuPDF>=1.24.0
+sqlalchemy>=2.0.29
+python-dotenv>=1.0.1
+pytesseract>=0.3.10
+Pillow>=10.3.0
