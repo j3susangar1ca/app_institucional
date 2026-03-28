@@ -125,7 +125,8 @@ class VistaCorrespondencia(ft.Column):
     async def _pick_files_click(self, e):
         await self.file_picker.pick_files(allow_multiple=False, allowed_extensions=["pdf"])
 
-    def _on_file_result(self, e: ft.FilePickerResultEvent):
+    async def _on_file_result(self, e):
+        """Maneja el resultado de la selección de archivos."""
         if e.files:
             self.ruta_pdf_actual = e.files[0].path
             self.pr.visible = True

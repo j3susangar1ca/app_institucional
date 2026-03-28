@@ -43,8 +43,13 @@ def get_db_session():
         logger.error(f"Error en transacción de BD: {str(e)}", exc_info=True)
         raise e
     finally:
+        # Cerrar sesión sin removerla del scoped_session inmediatamente
         db.close()
-        SessionLocal.remove()
+
+
+def _remove_session():
+    """Remover la sesión actual del scoped_session."""
+    SessionLocal.remove()
 
 
 def init_db():
@@ -101,9 +106,12 @@ def save_document(folio: str, asunto: str, contenido: str, remitente: str, ruta:
         )
         db.add(nuevo_doc)
         # El commit se hace automáticamente en el context manager
-        db.refresh(nuevo_doc)
-        logger.info(f"Documento guardado exitosamente: {nuevo_doc.folio} (ID: {nuevo_doc.id})")
-        return nuevo_doc
+        # El flush asegura que el ID sea generado antes del commit
+        db.flush()
+        doc_id = nuevo_doc.id
+        logger.info(f"Documento guardado exitosamente: {nuevo_doc.folio} (ID: {doc_id})")
+        # Retornar valores simples para evitar problemas de sesión
+        return {"id": doc_id, "folio": nuevo_doc.folio, "asunto": nuevo_doc.asunto}
 
 
 def get_document_by_folio(folio: str) -> Documento | None:
@@ -120,7 +128,7 @@ def get_document_by_folio(folio: str) -> Documento | None:
         return db.query(Documento).filter(Documento.folio == folio).first()
 
 
-def get_all_documents(limit: int = 100) -> list[Documento]:
+def get_all_documents(limit: int = 100) -> list[dict]:
     """
     Obtiene todos los documentos de la base de datos.
     
@@ -128,7 +136,9 @@ def get_all_documents(limit: int = 100) -> list[Documento]:
         limit: Máximo número de documentos a retornar
         
     Returns:
-        Lista de documentos
+        Lista de diccionarios con los datos de los documentos
     """
     with get_db_session() as db:
-        return db.query(Documento).order_by(Documento.fecha.desc()).limit(limit).all()
+        docs = db.query(Documento).order_by(Documento.fecha.desc()).limit(limit).all()
+        # Convertir a diccionarios para evitar problemas de sesión
+        return [{"id": d.id, "folio": d.folio, "asunto": d.asunto, "fecha": str(d.fecha)} for d in docs]

@@ -38,5 +38,11 @@ def main(page: ft.Page):
         raise
 
 if __name__ == "__main__":
-    # Usar ft.app en lugar de ft.run para mejor compatibilidad
-    ft.app(target=main, view=ft.AppView.FLET_APP)
+    # Usar ft.app con configuración específica para Linux
+    try:
+        ft.app(target=main, view=ft.AppView.FLET_APP, port=8550)
+    except Exception as e:
+        logger.error(f"Error al iniciar la aplicación: {e}", exc_info=True)
+        # Fallback a modo web si falla el modo desktop
+        print(f"Iniciando en modo web: http://localhost:8550")
+        ft.app(target=main, view=ft.AppView.WEB_BROWSER, port=8550)
