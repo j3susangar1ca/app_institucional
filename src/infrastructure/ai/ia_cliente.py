@@ -4,25 +4,19 @@ from typing import Optional
 from openai import OpenAI
 from dotenv import load_dotenv
 
-load_dotenv()
+from src.infrastructure.config import get_settings
+
 logger = logging.getLogger(__name__)
 
 class IACliente:
     """Implementación del cliente de IA usando OpenAI (LM Studio)."""
     
-    def __init__(
-        self, 
-        base_url: Optional[str] = None, 
-        api_key: Optional[str] = None,
-        model: Optional[str] = None,
-        temperature: float = 0.3
-    ):
-        self.base_url = base_url or os.getenv("IA_BASE_URL", "http://localhost:1234/v1")
-        self.api_key = api_key or os.getenv("IA_API_KEY", "lm-studio")
-        self.model = model or os.getenv("IA_MODEL", "local-model")
-        self.temperature = temperature
-        
-        self.client = OpenAI(base_url=self.base_url, api_key=self.api_key)
+    def __init__(self, settings=None):
+        self.settings = settings or get_settings().ai
+        self.client = OpenAI(
+            base_url=self.settings.base_url, 
+            api_key=self.settings.api_key
+        )
 
     def generar_respuesta(self, texto_oficio: str, contexto: Optional[str] = None) -> str:
         if not texto_oficio or not texto_oficio.strip():

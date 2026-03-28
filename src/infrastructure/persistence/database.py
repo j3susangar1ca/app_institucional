@@ -6,16 +6,15 @@ from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.pool import StaticPool
 from dotenv import load_dotenv
 from .models import Base
+from ..config import get_settings
 
-load_dotenv()
-logger = logging.getLogger(__name__)
-
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./data/app_datos.db")
+settings = get_settings()
 
 engine = create_engine(
-    DATABASE_URL, 
+    settings.database.url, 
     connect_args={"check_same_thread": False},
-    poolclass=StaticPool
+    poolclass=StaticPool,
+    echo=settings.database.echo
 )
 
 SessionLocal = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
