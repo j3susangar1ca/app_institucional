@@ -8,34 +8,22 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 def main(page: ft.Page):
-    try:
-        # 1. Inicializar la base de datos local
-        init_db()
-        
-        # 2. Configuración de la ventana
-        page.title = "Sistema de Archivo e IA"
-        page.window.width = 1100
-        page.window.height = 800
-        page.window.resizable = True
-        page.theme_mode = ft.ThemeMode.LIGHT
-        page.padding = 30
-        page.bgcolor = ft.Colors.BLUE_GREY_50
-        page.theme = ft.Theme(color_scheme_seed=ft.Colors.BLUE_900)
-        
-        # 3. Manejador de errores de la página
-        def on_error(e):
-            logger.error(f"Error en la página: {e}")
-            
-        page.on_error = on_error
-        
-        # 4. Cargar vista principal
-        vista_principal = VistaCorrespondencia(page)
-        page.add(vista_principal)
-        page.update()
-        
-    except Exception as e:
-        logger.error(f"Error fatal al inicializar: {e}", exc_info=True)
-        raise
+    # 1. Inicializar la base de datos local
+    init_db()
+    
+    # 2. Configuración de la ventana
+    page.title = "Sistema de Archivo e IA"
+    page.window.width = 1100
+    page.window.height = 800
+    page.theme_mode = ft.ThemeMode.LIGHT
+    page.padding = 30
+    page.bgcolor = ft.Colors.BLUE_GREY_50
+    page.theme = ft.Theme(color_scheme_seed=ft.Colors.BLUE_900)
+
+    # 3. Cargar vista principal
+    vista_principal = VistaCorrespondencia(page)
+    page.add(vista_principal)
+    # ELIMINA el page.update() de aquí, ya lo pusimos en vistas.py
 
 if __name__ == "__main__":
     # Usar ft.app con configuración específica para Linux

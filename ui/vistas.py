@@ -18,12 +18,13 @@ class VistaCorrespondencia(ft.Column):
         # Inicialización de módulos core
         self.procesador = ProcesadorPDF()
         self.ia = IACliente()
-        self.ruta_pdf_actual: str = ""
+        self.ruta_pdf_actual = ""
         
         # Configurar FilePicker
         self.file_picker = ft.FilePicker()
         self.file_picker.on_result = self._on_file_result
         self._page.overlay.append(self.file_picker)
+        self._page.update() # AÑADE ESTA LÍNEA AQUÍ
 
         # --- CAMPOS ADMINISTRATIVOS ---
         self.txt_folio = ft.TextField(
@@ -120,10 +121,9 @@ class VistaCorrespondencia(ft.Column):
             ], expand=True),
         ]
 
-    # --- MÉTODOS DE EVENTOS ---
-
-    async def _pick_files_click(self, e):
-        await self.file_picker.pick_files(allow_multiple=False, allowed_extensions=["pdf"])
+    # MÉTODOS DE EVENTOS
+    def _pick_files_click(self, e):
+        self.file_picker.pick_files(allow_multiple=False, allowed_extensions=["pdf"])
 
     async def _on_file_result(self, e):
         """Maneja el resultado de la selección de archivos."""
