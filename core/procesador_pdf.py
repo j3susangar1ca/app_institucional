@@ -68,7 +68,7 @@ class ProcesadorPDF:
                 else:
                     # 2. Si falla (es un escaneo), aplicar OCR
                     logger.info(f"Página {num_pagina + 1}: aplicando OCR")
-                    texto_ocr = self._aplicar_cr(pagina, num_pagina)
+                    texto_ocr = self._aplicar_ocr(pagina, num_pagina)
                     texto_completo += texto_ocr + "\n\n"
             
             logger.info(f"Extracción completada: {len(texto_completo)} caracteres totales")

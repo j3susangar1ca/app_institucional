@@ -40,11 +40,15 @@ def get_db_session():
         db.commit()
     except Exception as e:
         db.rollback()
-        logger.error(f"Error en transacción de BD: {str(e)}", exc_info=True)
+        logger.error(f"Error en transacción de BD: {str(e)}")
         raise e
     finally:
         db.close()
-        SessionLocal.remove()
+
+
+def _remove_session():
+    """Remover la sesión actual del scoped_session."""
+    SessionLocal.remove()
 
 
 def init_db():
@@ -61,7 +65,7 @@ def init_db():
         raise e
 
 
-def save_document(folio: str, asunto: str, contenido: str, remitente: str, ruta: str) -> Documento:
+def save_document(folio: str, asunto: str, contenido: str, remitente: str, ruta: str) -> dict:
     """
     Guarda un documento en la base de datos.
     
@@ -73,9 +77,10 @@ def save_document(folio: str, asunto: str, contenido: str, remitente: str, ruta:
         ruta: Ruta al archivo PDF
         
     Returns:
-        El documento guardado con su ID asignado
+        Diccionario con los datos del documento guardado
         
     Raises:
+        ValueError: Si faltan datos requeridos o el folio ya existe
         Exception: Si ocurre un error al guardar
     """
     if not folio or not folio.strip():
@@ -100,13 +105,13 @@ def save_document(folio: str, asunto: str, contenido: str, remitente: str, ruta:
             ruta_archivo=ruta
         )
         db.add(nuevo_doc)
-        # El commit se hace automáticamente en el context manager
-        db.refresh(nuevo_doc)
-        logger.info(f"Documento guardado exitosamente: {nuevo_doc.folio} (ID: {nuevo_doc.id})")
-        return nuevo_doc
+        db.flush()
+        doc_id = nuevo_doc.id
+        logger.info(f"Documento guardado exitosamente: {nuevo_doc.folio} (ID: {doc_id})")
+        return {"id": doc_id, "folio": nuevo_doc.folio, "asunto": nuevo_doc.asunto}
 
 
-def get_document_by_folio(folio: str) -> Documento | None:
+def get_document_by_folio(folio: str) -> dict | None:
     """
     Busca un documento por su folio.
     
@@ -114,13 +119,16 @@ def get_document_by_folio(folio: str) -> Documento | None:
         folio: Folio del documento a buscar
         
     Returns:
-        El documento si existe, None en caso contrario
+        Diccionario con los datos del documento si existe, None en caso contrario
     """
     with get_db_session() as db:
-        return db.query(Documento).filter(Documento.folio == folio).first()
+        doc = db.query(Documento).filter(Documento.folio == folio).first()
+        if doc:
+            return doc.to_dict()
+        return None
 
 
-def get_all_documents(limit: int = 100) -> list[Documento]:
+def get_all_documents(limit: int = 100) -> list[dict]:
     """
     Obtiene todos los documentos de la base de datos.
     
@@ -128,7 +136,8 @@ def get_all_documents(limit: int = 100) -> list[Documento]:
         limit: Máximo número de documentos a retornar
         
     Returns:
-        Lista de documentos
+        Lista de diccionarios con los datos de los documentos
     """
     with get_db_session() as db:
-        return db.query(Documento).order_by(Documento.fecha.desc()).limit(limit).all()
+        docs = db.query(Documento).order_by(Documento.fecha.desc()).limit(limit).all()
+        return [doc.to_dict() for doc in docs]

@@ -1,6 +1,6 @@
 import flet as ft
 import logging
-from typing import Optional
+from typing import Optional, List
 from core.procesador_pdf import ProcesadorPDF
 from core.ia_cliente import IACliente
 from database.db_manager import save_document
@@ -20,9 +20,8 @@ class VistaCorrespondencia(ft.Column):
         self.ia = IACliente()
         self.ruta_pdf_actual: str = ""
         
-        # Configurar FilePicker
+        # Configurar FilePicker (sin on_result - se usa retorno directo en Flet 0.83+)
         self.file_picker = ft.FilePicker()
-        self.file_picker.on_result = self._on_file_result
         self._page.overlay.append(self.file_picker)
 
         # --- CAMPOS ADMINISTRATIVOS ---
@@ -123,24 +122,35 @@ class VistaCorrespondencia(ft.Column):
     # --- MÉTODOS DE EVENTOS ---
 
     async def _pick_files_click(self, e):
-        await self.file_picker.pick_files(allow_multiple=False, allowed_extensions=["pdf"])
-
-    def _on_file_result(self, e: ft.FilePickerResultEvent):
-        if e.files:
-            self.ruta_pdf_actual = e.files[0].path
-            self.pr.visible = True
-            self._page.update()
+        """Maneja la selección de archivos PDF usando el retorno directo de pick_files."""
+        try:
+            # En Flet 0.83+, pick_files retorna directamente la lista de archivos
+            result: List[ft.FilePickerFile] = await self.file_picker.pick_files(
+                allow_multiple=False, 
+                allowed_extensions=["pdf"]
+            )
             
-            try:
-                texto = self.procesador.extraer_texto(self.ruta_pdf_actual)
-                self.txt_oficio.value = texto
-                self._mostrar_notificacion(f"Archivo cargado: {e.files[0].name}", ft.Colors.GREEN)
-            except Exception as ex:
-                logger.error(f"Error al procesar PDF: {str(ex)}", exc_info=True)
-                self._mostrar_notificacion(f"Error al procesar PDF: {str(ex)}", ft.Colors.RED)
-            finally:
-                self.pr.visible = False
+            if result and len(result) > 0:
+                archivo = result[0]
+                self.ruta_pdf_actual = archivo.path
+                self.pr.visible = True
                 self._page.update()
+                
+                try:
+                    texto = self.procesador.extraer_texto(self.ruta_pdf_actual)
+                    self.txt_oficio.value = texto
+                    self._mostrar_notificacion(f"Archivo cargado: {archivo.name}", ft.Colors.GREEN)
+                except Exception as ex:
+                    logger.error(f"Error al procesar PDF: {str(ex)}", exc_info=True)
+                    self._mostrar_notificacion(f"Error al procesar PDF: {str(ex)}", ft.Colors.RED)
+                finally:
+                    self.pr.visible = False
+                    self._page.update()
+            else:
+                self._mostrar_notificacion("No se seleccionó ningún archivo", ft.Colors.BLUE_GREY)
+        except Exception as ex:
+            logger.error(f"Error en selección de archivos: {str(ex)}", exc_info=True)
+            self._mostrar_notificacion(f"Error: {str(ex)}", ft.Colors.RED)
 
     def _procesar_con_ia(self, e):
         if not self.txt_oficio.value or not self.txt_oficio.value.strip():
