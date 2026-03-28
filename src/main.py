@@ -2,8 +2,8 @@ import flet as ft
 import logging
 from src.infrastructure.config import get_settings
 from src.infrastructure.persistence.sql_document_repository import DocumentoRepositoryImpl
-from src.infrastructure.pdf.procesador_pdf import ProcesadorPDF
-from src.infrastructure.ai.ia_cliente import IACliente
+from src.infrastructure.pdf.procesador_pdf import PDFProcessorImpl
+from src.infrastructure.ai.ia_cliente import OpenAIClientImpl
 from src.application.use_cases import (
     CargarDocumentoUseCase, GenerarRespuestaUseCase, GuardarDocumentoUseCase, BuscarDocumentoUseCase
 )
@@ -21,8 +21,8 @@ def main(page: ft.Page):
     repo = DocumentoRepositoryImpl()
     repo.inicializar()
     
-    pdf = ProcesadorPDF(ocr_language=settings.ocr_language)
-    ia = IACliente(settings=settings.ai)
+    pdf = PDFProcessorImpl(idioma_ocr=settings.ocr_language)
+    ia = OpenAIClientImpl(settings=settings.ai)
     
     # Aplicación
     cargar_uc = CargarDocumentoUseCase(pdf)

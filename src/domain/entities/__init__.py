@@ -16,21 +16,31 @@ class ResultadoOperacion(Generic[T]):
     def es_exitoso(self) -> bool:
         return self.exitoso
 
+    @classmethod
+    def exito_con_datos(cls, datos: T):
+        return cls(exitoso=True, datos=datos)
+
+    @classmethod
+    def fallo_con_error(cls, error: str, codigo: str):
+        return cls(exitoso=False, error=error, codigo_error=codigo)
+
 @dataclass
 class RespuestaIA:
     """Entidad que representa una respuesta generada por IA."""
     contenido: str
     modelo: str
     tokens_utilizados: int = 0
-    tiempo_respuesta_ms: int = 0
+    tiempo_respuesta_ms: float = 0
 
 @dataclass
 class ResultadoProcesamientoPDF:
     """Entidad que representa el resultado de procesar un PDF."""
     contenido_extraido: str
     numero_paginas: int
+    paginas_con_ocr: List[int] = field(default_factory=list)
+    tiempo_procesamiento_ms: float = 0
     requiere_ocr: bool = False
-    paginas_con_ocr: Set[int] = field(default_factory=set)
+    errores: List[str] = field(default_factory=list)
 
 @dataclass
 class Documento:
