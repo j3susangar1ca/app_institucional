@@ -4,6 +4,7 @@ from src.infrastructure.config import get_settings
 from src.infrastructure.persistence.sql_document_repository import DocumentoRepositoryImpl
 from src.infrastructure.pdf.procesador_pdf import PDFProcessorImpl
 from src.infrastructure.ai.ia_cliente import OpenAIClientImpl
+from src.infrastructure.vector_store.chroma_store import ChromaStoreImpl
 from src.application.use_cases import (
     CargarDocumentoUseCase, GenerarRespuestaUseCase, GuardarDocumentoUseCase, BuscarDocumentoUseCase
 )
@@ -23,6 +24,7 @@ def main(page: ft.Page):
     
     pdf = PDFProcessorImpl(idioma_ocr=settings.ocr_language)
     ia = OpenAIClientImpl(settings=settings.ai)
+    vector_store = ChromaStoreImpl()
     
     # Aplicación
     cargar_uc = CargarDocumentoUseCase(pdf)
