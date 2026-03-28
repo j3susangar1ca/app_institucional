@@ -8,5 +8,5 @@ from src.main import main
 import flet as ft
 
 if __name__ == "__main__":
-    # Redirigir a la ejecución en src/main.py
-    ft.app(target=main)
+    # Redirigir a la ejecución en src/main.py usando ft.run para evitar el DeprecationWarning
+    ft.run(main)

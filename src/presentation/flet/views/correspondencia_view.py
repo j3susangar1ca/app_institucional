@@ -14,7 +14,8 @@ class CorrespondenciaView(ft.Column):
         self.vm.on_notification = self._show_snack
 
         # FilePicker
-        self.file_picker = ft.FilePicker(on_result=self._on_file_result)
+        self.file_picker = ft.FilePicker()
+        self.file_picker.on_result = self._on_file_result
         self._page.overlay.append(self.file_picker)
 
         # Controles
