@@ -82,6 +82,10 @@ class ResultadoOperacionDTO:
     error: Optional[str] = None
     codigo: Optional[str] = None
 
+    @property
+    def exito(self) -> bool:
+        return self.exitoso
+
     @classmethod
     def exitoso(cls, datos: Dict[str, Any]):
         return cls(exitoso=True, datos=datos)
