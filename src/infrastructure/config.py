@@ -58,6 +58,7 @@ class AppConfig:
     """Configuración principal de la aplicación."""
     app_name: str = "Sistema de Archivo e IA"
     version: str = "2.0.0"
+    ocr_language: str = "spa"
     database: DatabaseConfig = field(default_factory=DatabaseConfig)
     ai: AIConfig = field(default_factory=AIConfig)
     vector_store: VectorStoreConfig = field(default_factory=VectorStoreConfig)

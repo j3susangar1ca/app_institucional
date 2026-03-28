@@ -1,8 +1,7 @@
 import flet as ft
 import logging
 from src.infrastructure.config import get_settings
-from src.infrastructure.persistence.database import init_db
-from src.infrastructure.persistence.sql_document_repository import SqlAlchemyDocumentRepository
+from src.infrastructure.persistence.sql_document_repository import DocumentoRepositoryImpl
 from src.infrastructure.pdf.procesador_pdf import ProcesadorPDF
 from src.infrastructure.ai.ia_cliente import IACliente
 from src.application.use_cases import (
@@ -17,10 +16,11 @@ logger = logging.getLogger(__name__)
 
 def main(page: ft.Page):
     settings = get_settings()
-    init_db()
     
     # Infraestructura
-    repo = SqlAlchemyDocumentRepository()
+    repo = DocumentoRepositoryImpl()
+    repo.inicializar()
+    
     pdf = ProcesadorPDF(ocr_language=settings.ocr_language)
     ia = IACliente(settings=settings.ai)
     

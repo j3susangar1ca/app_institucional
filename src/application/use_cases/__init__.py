@@ -5,9 +5,9 @@ Orquestan el flujo de datos y ejecutan lógica de negocio.
 from dataclasses import dataclass
 import time
 from typing import Optional, Protocol, runtime_checkable
-from ..domain.entities import Documento, RespuestaIA, ResultadoProcesamientoPDF, ResultadoOperacion
-from ..domain.value_objects import Folio, Asunto, ContenidoTexto, Remitente, RutaArchivo
-from .dto import (
+from src.domain.entities import Documento, RespuestaIA, ResultadoProcesamientoPDF, ResultadoOperacion
+from src.domain.value_objects import Folio, Asunto, ContenidoTexto, Remitente, RutaArchivo
+from src.application.dto import (
     DocumentoDTO, RespuestaIADTO, ResultadoProcesamientoDTO,
     CrearDocumentoRequest, GenerarRespuestaRequest, ProcesarPDFRequest,
     ResultadoOperacionDTO

@@ -1,5 +1,5 @@
 import flet as ft
-from ..viewmodels.correspondencia_viewmodel import CorrespondenciaViewModel
+from src.presentation.flet.viewmodels.correspondencia_viewmodel import CorrespondenciaViewModel
 
 class CorrespondenciaView(ft.Column):
     """Vista de correspondencia refactorizada para Clean Architecture."""
